@@ -151,7 +151,7 @@ class World {
       this.group.add(m); this.pickables.push(m);
     }
     if(rocks.length){
-      const r = new THREE.Mesh(K.merge(rocks), K.vlambert({ flatShading:true }));
+      const r = new THREE.Mesh(K.merge(rocks), K.vlambert({}));
       r.castShadow = true; r.receiveShadow = true; this.group.add(r);
     }
   }
@@ -187,7 +187,7 @@ class World {
     // a little rubble left behind
     const R = K.seeded(x*31 + y*17), parts = [];
     for(let i=0;i<5;i++) parts.push(K.at(K.paint(K.lump(0.12 + R()*0.15, 0, 0.4), 0x3a2c22), (R() - 0.5)*1.5, 0.06, (R() - 0.5)*1.5));
-    const rub = new THREE.Mesh(K.merge(parts), K.vlambert({ flatShading:true }));
+    const rub = new THREE.Mesh(K.merge(parts), K.vlambert({}));
     rub.position.copy(this.pos(x, y)); this.group.add(rub);
   }
   /* a node drained: its light goes out */
@@ -231,14 +231,15 @@ class World {
       const y = heightAt(x, z) - 0.2;
       if(R() < 0.42){
         // a giant glowcap, lighting the dark beyond the clearing
-        const Hh = 5 + Math.pow(R(), 1.5)*14, cr = 1.6 + Hh*0.3 + R()*1.2, col = K.BLUES[R() < 0.88 ? Math.floor(R()*5) : 5 + Math.floor(R()*2)];
+        // (low near the clearing, so the camera looks over them; towering further out)
+        const out = Math.max(Math.abs(x) - W/2, Math.abs(z) - H/2), Hh = 3 + Math.pow(R(), 1.5)*GS.clamp(out*0.5, 3, 16), cr = 1.6 + Hh*0.3 + R()*1.2, col = K.BLUES[R() < 0.88 ? Math.floor(R()*5) : 5 + Math.floor(R()*2)];
         const w = Math.max(0.25, cr*0.13);
         stems.push(K.at(K.paint(new THREE.CylinderGeometry(w*0.75, w, Hh, 8), 0xcfe4ff), x, y + Hh/2, z));
         (capsBy[col] = capsBy[col] || []).push(K.at(K.capGeo.clone(), x, y + Hh, z, 0, R()*6, 0, cr, cr*0.55, cr));
         halos.push({ x, y:y + Hh + cr*0.2, z, c:col, s:cr*3.4 });
       } else {
         // a dark fir, layered cones
-        const th = 7 + R()*10, c = new THREE.Color().setHSL(0.48 + R()*0.06, 0.35, 0.05 + R()*0.04);
+        const out = Math.max(Math.abs(x) - W/2, Math.abs(z) - H/2), th = 4 + R()*GS.clamp(out*0.6, 3, 13), c = new THREE.Color().setHSL(0.48 + R()*0.06, 0.35, 0.05 + R()*0.04);
         trees.push(K.at(K.paint(new THREE.CylinderGeometry(0.15, 0.3, th*0.3, 5), 0x1a1410), x, y + th*0.15, z));
         for(let k=0;k<4;k++){ const f = k/4, r = (1 - f)*th*0.28 + 0.6;
           trees.push(K.at(K.paint(new THREE.ConeGeometry(r, th*0.42, 7), c.getHex(), (cc, vx, vy)=> cc.offsetHSL(0, 0, vy*0.01)), x, y + th*0.25 + f*th*0.62, z)); }
@@ -250,7 +251,7 @@ class World {
       const m = new THREE.Mesh(K.merge(capsBy[col]), K.capMat(+col, { spots:0 }));
       this.group.add(m);
     });
-    this.group.add(new THREE.Mesh(K.merge(trees), K.vlambert({ flatShading:true })));
+    this.group.add(new THREE.Mesh(K.merge(trees), K.vlambert({})));
     this.group.add(K.halos(halos));
     // pools of light on the ground under the far caps
     const gl = new THREE.InstancedMesh(K.glowPlane, K.glowMat(0x2fb8ff, 0.5), halos.length);
@@ -310,8 +311,8 @@ World.PROP = {
   boulder(w, R){
     const g = new THREE.Group();
     const geo = K.paint(K.lump(0.95, 1, 0.3), 0x3a4050, (c, x, y)=>{ c.offsetHSL(0, 0, (R() - 0.5)*0.04); if(y > 0.45) c.lerp(new THREE.Color(0x1f4a4a), 0.7); });
-    const b = new THREE.Mesh(geo, K.vlambert({ flatShading:true })); b.scale.set(1.05, 0.95, 1.0); b.position.y = 0.75; b.rotation.y = R()*6; g.add(b);
-    if(R() < 0.6){ const b2 = new THREE.Mesh(K.paint(K.lump(0.5, 1, 0.3), 0x353a48), K.vlambert({ flatShading:true })); b2.position.set(0.55, 0.35, 0.45); g.add(b2); }
+    const b = new THREE.Mesh(geo, K.vlambert({})); b.scale.set(1.05, 0.95, 1.0); b.position.y = 0.75; b.rotation.y = R()*6; g.add(b);
+    if(R() < 0.6){ const b2 = new THREE.Mesh(K.paint(K.lump(0.5, 1, 0.3), 0x353a48), K.vlambert({})); b2.position.set(0.55, 0.35, 0.45); g.add(b2); }
     // glowing lichen
     for(let i=0;i<5;i++){ const a = R()*6.28, s = new THREE.Mesh(new THREE.SphereGeometry(0.06 + R()*0.05, 5, 3), K.basic(R() < 0.7 ? 0x5ff2ff : 0x9a7bff));
       s.position.set(Math.cos(a)*0.85, 0.5 + R()*0.6, Math.sin(a)*0.8); g.add(s); }
@@ -321,14 +322,14 @@ World.PROP = {
     const g = new THREE.Group(), L = 1.8;
     const geo = K.paint(new THREE.CylinderGeometry(0.36, 0.42, L, 9, 3), 0x3b2a1e, (c, x, y)=> c.offsetHSL(0, 0, Math.sin(y*9 + x*20)*0.02));
     const p = geo.attributes.position; for(let i=0;i<p.count;i++){ const k = 1 + (Math.sin(p.getY(i)*7 + i)*0.06); p.setX(i, p.getX(i)*k); p.setZ(i, p.getZ(i)*k); } geo.computeVertexNormals();
-    const log = new THREE.Mesh(geo, K.vlambert({ flatShading:true })); log.rotation.z = Math.PI/2; log.position.y = 0.38; g.add(log);
+    const log = new THREE.Mesh(geo, K.vlambert({})); log.rotation.z = Math.PI/2; log.position.y = 0.38; g.add(log);
     // the cut ends, pale
     [-1, 1].forEach(s=>{ const e = new THREE.Mesh(new THREE.CircleGeometry(0.38, 9), K.lambert(0x8a6a44)); e.position.set(s*L/2 + s*0.01, 0.38, 0); e.rotation.y = s*Math.PI/2; g.add(e); });
     // shelf fungus, glowing
     for(let i=0;i<4;i++){ const sf = new THREE.Mesh(new THREE.CylinderGeometry(0.22 + R()*0.1, 0.05, 0.06, 10, 1, false, 0, Math.PI), K.basic(R() < 0.5 ? 0x34e6ff : 0xff9a3a));
       sf.position.set((R() - 0.5)*L*0.8, 0.3 + R()*0.3, (R() < 0.5 ? -1 : 1)*0.36); sf.rotation.y = sf.position.z > 0 ? Math.PI : 0; g.add(sf); }
     // moss on top
-    const moss = new THREE.Mesh(K.paint(K.lump(0.3, 1, 0.3), 0x1f5a4a), K.vlambert({ flatShading:true })); moss.scale.set(2.2, 0.35, 0.9); moss.position.set(0, 0.72, 0); g.add(moss);
+    const moss = new THREE.Mesh(K.paint(K.lump(0.3, 1, 0.3), 0x1f5a4a), K.vlambert({})); moss.scale.set(2.2, 0.35, 0.9); moss.position.set(0, 0.72, 0); g.add(moss);
     g.rotation.y = R() < 0.5 ? 0 : Math.PI/2;
     return g;
   },
@@ -357,7 +358,7 @@ World.PROP = {
     const g = new THREE.Group();
     const geo = K.paint(new THREE.CylinderGeometry(0.5, 0.65, 0.9, 9, 2), 0x2e2219);
     const p = geo.attributes.position; for(let i=0;i<p.count;i++){ if(p.getY(i) > 0.4) p.setY(i, 0.45 + Math.sin(i*2.3)*0.12); } geo.computeVertexNormals();
-    const s = new THREE.Mesh(geo, K.vlambert({ flatShading:true })); s.position.y = 0.45; g.add(s);
+    const s = new THREE.Mesh(geo, K.vlambert({})); s.position.y = 0.45; g.add(s);
     const hole = new THREE.Mesh(new THREE.CircleGeometry(0.38, 9), K.basic(0x0a0608)); hole.rotation.x = -Math.PI/2; hole.position.y = 0.86; g.add(hole);
     for(let i=0;i<3;i++){ const sf = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.04, 0.05, 10, 1, false, 0, Math.PI), K.basic(0xb04dff));
       const a = R()*6.28; sf.position.set(Math.cos(a)*0.55, 0.3 + R()*0.4, Math.sin(a)*0.55); sf.rotation.y = -a + Math.PI/2; g.add(sf); }

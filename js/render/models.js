@@ -22,8 +22,8 @@ function rig(){
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   return { root, body, mats:[], parts:{}, muzzle:new THREE.Object3D(), head:1.6, idle:null };
 }
-function L(R, c, extra){ const m = new THREE.MeshLambertMaterial(Object.assign({ color:c, flatShading:true }, extra)); R.mats.push(m); return m; }
-function VL(R, extra){ const m = new THREE.MeshLambertMaterial(Object.assign({ vertexColors:true, flatShading:true }, extra)); R.mats.push(m); return m; }
+function L(R, c, extra){ const m = new THREE.MeshLambertMaterial(Object.assign({ color:c }, extra)); R.mats.push(m); return m; }
+function VL(R, extra){ const m = new THREE.MeshLambertMaterial(Object.assign({ vertexColors:true }, extra)); R.mats.push(m); return m; }
 function mesh(parent, g, m, x, y, z){ const o = new THREE.Mesh(g, m); o.position.set(x || 0, y || 0, z || 0); o.castShadow = true; parent.add(o); return o; }
 function glowBall(parent, r, c, x, y, z){ return mesh(parent, new THREE.SphereGeometry(r, 7, 5), K.basic(c), x, y, z); }
 function haloSprite(parent, c, s, x, y, z){
@@ -73,7 +73,7 @@ const WEAPON = {
 /* ---- the caps ---- */
 const CAPS = {
   porcini(R, top){
-    const c = mesh(top, K.capGeo, K.capMat(0x8a5a2b, { spots:0, glow:0 })); c.scale.set(0.64, 0.42, 0.64); c.castShadow = true;
+    const c = mesh(top, K.capGeo, K.capMat(0x8a5a2b, { cut:false, spots:0, glow:0 })); c.scale.set(0.64, 0.42, 0.64); c.castShadow = true;
     return 0.42;
   },
   morel(R, top){
@@ -87,23 +87,23 @@ const CAPS = {
     return 0.88;
   },
   parasol(R, top){
-    const c = mesh(top, K.capGeo, K.capMat(0xe8dcc0, { spots:1, spotColor:0x6b4a2e, glow:0 })); c.scale.set(0.8, 0.24, 0.8); c.castShadow = true;
+    const c = mesh(top, K.capGeo, K.capMat(0xe8dcc0, { cut:false, spots:1, spotColor:0x6b4a2e, glow:0 })); c.scale.set(0.8, 0.24, 0.8); c.castShadow = true;
     mesh(top, new THREE.SphereGeometry(0.12, 8, 5), L(R, 0x6b4a2e), 0, 0.2, 0);
     return 0.3;
   },
   amanita(R, top){
-    const c = mesh(top, K.capGeo, K.capMat(0xd02a2a, { spots:1, spotColor:0xffffff, glow:0 })); c.scale.set(0.58, 0.46, 0.58); c.castShadow = true;
+    const c = mesh(top, K.capGeo, K.capMat(0xd02a2a, { cut:false, spots:1, spotColor:0xffffff, glow:0 })); c.scale.set(0.58, 0.46, 0.58); c.castShadow = true;
     return 0.46;
   },
   puffball(R, top){
     const g = K.paint(K.lump(0.56, 2, 0.06), 0xece6d8, (c, x, y)=> c.offsetHSL(0, 0, -0.06 + y*0.08));
-    const b = mesh(top, g, VL(R, { flatShading:false }), 0, 0.42, 0); b.scale.set(1, 0.88, 1);
+    const b = mesh(top, g, VL(R, {}), 0, 0.42, 0); b.scale.set(1, 0.88, 1);
     for(let i=0;i<14;i++){ const a = Math.random()*6.28, e = 0.2 + Math.random()*1.1, r = 0.55;
       mesh(top, new THREE.SphereGeometry(0.035, 5, 3), L(R, 0xd8cfb8), Math.cos(a)*Math.cos(e)*r, 0.42 + Math.sin(e)*r*0.88, Math.sin(a)*Math.cos(e)*r); }
     return 0.9;
   },
   husk(R, top){
-    const c = mesh(top, K.capGeo, K.capMat(0x3a2c3a, { spots:1, spotColor:0x9cff3a, glow:0.3 })); c.scale.set(0.6, 0.36, 0.6); c.rotation.z = 0.25;
+    const c = mesh(top, K.capGeo, K.capMat(0x3a2c3a, { cut:false, spots:1, spotColor:0x9cff3a, glow:0.3 })); c.scale.set(0.6, 0.36, 0.6); c.rotation.z = 0.25;
     // cordyceps: orange stalks bursting out of the cap, tips glowing
     for(let i=0;i<6;i++){ const a = Math.random()*6.28, r = Math.random()*0.35, h = 0.4 + Math.random()*0.5;
       const s = mesh(top, new THREE.CylinderGeometry(0.015, 0.035, h, 5), L(R, 0xff8a2a, { emissive:0x401800 }), Math.cos(a)*r, 0.25 + h/2, Math.sin(a)*r);
@@ -152,7 +152,7 @@ function folk(o){
   }
   if(o.shield){
     const sh = new THREE.Group(); sh.position.set(-0.08, -0.15, 0.2); R.parts.armL.a.add(sh);
-    const c = mesh(sh, K.capGeo, K.capMat(0x8a5a2b, { spots:0, glow:0 })); c.scale.set(0.36, 0.18, 0.36); c.rotation.x = Math.PI/2; c.rotation.z = 0.2;
+    const c = mesh(sh, K.capGeo, K.capMat(0x8a5a2b, { cut:false, spots:0, glow:0 })); c.scale.set(0.36, 0.18, 0.36); c.rotation.x = Math.PI/2; c.rotation.z = 0.2;
     mesh(sh, new THREE.CylinderGeometry(0.04, 0.04, 0.12, 6), L(R, 0xe0d4b0), 0, 0, -0.05).rotation.x = Math.PI/2;
   }
   if(o.mortar){
@@ -226,7 +226,7 @@ Models.gloom = function(u){
       break;
     }
     case "bloater": {
-      const body = mesh(b, fleshGeo(0.85, 2, 0.12, 0x5b4a5e, 0x7a6a3a), VL(R, { flatShading:false }), 0, 0.92, 0); body.scale.set(1, 0.9, 1);
+      const body = mesh(b, fleshGeo(0.85, 2, 0.12, 0x5b4a5e, 0x7a6a3a), VL(R, {}), 0, 0.92, 0); body.scale.set(1, 0.9, 1);
       R.parts.belly = body;
       pustules(R, b, 14, 0.82, 0.95, 1, 0.9, 1);
       eyes(b, 2, 1.1, 0.78, 0.22, 0xffe14a, 0.06);
@@ -285,7 +285,7 @@ Models.gloom = function(u){
       break;
     }
     case "heart": {
-      const core = mesh(b, fleshGeo(1.0, 2, 0.22, 0x6a1240, 0x9a1a5a), VL(R, { flatShading:false, emissive:0x2a0418 }), 0, 0.85, 0); core.scale.set(1, 0.85, 1);
+      const core = mesh(b, fleshGeo(1.0, 2, 0.22, 0x6a1240, 0x9a1a5a), VL(R, { emissive:0x2a0418 }), 0, 0.85, 0); core.scale.set(1, 0.85, 1);
       pustules(R, b, 18, 0.95, 0.85, 1, 0.85, 1, K.ROT.vein);
       pustules(R, b, 8, 0.95, 0.85, 1, 0.85, 1, K.ROT.pus);
       for(let i=0;i<9;i++){ const a = i/9*6.28 + Math.random()*0.3, t = mesh(b, new THREE.ConeGeometry(0.16, 1.9, 5), L(R, 0x3a0a2a), Math.cos(a)*1.4, 0.12, Math.sin(a)*1.4);
@@ -300,8 +300,10 @@ Models.gloom = function(u){
   return R;
 };
 
+Models.SCALE = 1.3;     // a touch larger than life, so they read against the giant caps
 Models.build = function(u){
   const R = u.team === "squad" ? Models.squad(u) : Models.gloom(u);
+  R.body.scale.setScalar(Models.SCALE); R.head *= Models.SCALE;
   R.root.traverse(o=>{ if(o.isMesh) o.castShadow = true; });
   // the team ring on the ground
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.74, 32), new THREE.MeshBasicMaterial({

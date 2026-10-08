@@ -155,18 +155,26 @@ K.capGeo = (()=>{
   K.paint(top, 0xffffff); K.paint(under, 0x737373);
   return K.merge([top, under]);
 })();
+/* the camera's sight line, shared by every cap: caps close to it dither away */
+K.sight = { uCam:{ value:new THREE.Vector3(0, 100, 0) }, uTgt:{ value:new THREE.Vector3() }, uClear:{ value:4.5 } };
 K.capMat = function(color, opts){
   opts = opts || {};
   const m = new THREE.ShaderMaterial({
-    uniforms:{ uCol:{ value:new THREE.Color(color) }, uFade:{ value:1 }, uSpots:{ value:opts.spots === undefined ? 1 : opts.spots },
+    uniforms:{ uCam:K.sight.uCam, uTgt:K.sight.uTgt, uClear:K.sight.uClear, uCut:{ value:opts.cut === false ? 0 : 1 }, uCol:{ value:new THREE.Color(color) }, uFade:{ value:1 }, uSpots:{ value:opts.spots === undefined ? 1 : opts.spots },
                uSpotCol:{ value:new THREE.Color(opts.spotColor || 0xe6fbff) }, uGlow:{ value:opts.glow === undefined ? 1 : opts.glow }, uSeed:{ value:Math.random()*50 } },
     vertexColors:true,
-    vertexShader:["varying vec3 vL; varying vec3 vN; varying vec3 vCol;",
-      "void main(){ vL = position; vN = normalize(mat3(modelMatrix)*normal); vCol = color; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }"].join("\n"),
-    fragmentShader:["uniform vec3 uCol, uSpotCol; uniform float uFade, uSpots, uGlow, uSeed; varying vec3 vL; varying vec3 vN; varying vec3 vCol;",
+    vertexShader:["varying vec3 vL; varying vec3 vN; varying vec3 vCol; varying vec3 vW;",
+      "void main(){ vL = position; vN = normalize(mat3(modelMatrix)*normal); vCol = color; vW = (modelMatrix*vec4(position, 1.0)).xyz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }"].join("\n"),
+    fragmentShader:["uniform vec3 uCol, uSpotCol, uCam, uTgt; uniform float uFade, uSpots, uGlow, uSeed, uClear, uCut; varying vec3 vL; varying vec3 vN; varying vec3 vCol; varying vec3 vW;",
       "float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7)))*43758.5453); }",
       "void main(){",
-      "  if(uFade < 0.99){ float n = h(floor(gl_FragCoord.xy) + uSeed); if(n > uFade) discard; }",
+      // anything right on the line from the camera to what it's looking at dithers out
+      "  vec3 sd = uTgt - uCam; float sl = dot(sd, sd); float st = clamp(dot(vW - uCam, sd)/sl, 0.0, 1.0);",
+      "  float near = st > 0.02 && st < 0.9 ? smoothstep(uClear*0.6, uClear*1.4, length(vW - uCam - sd*st)) : 1.0;",
+      // ...and so does anything looming right in front of the lens
+      "  near = min(near, smoothstep(9.0, 17.0, distance(vW, uCam)));",
+      "  float fade = min(uFade, mix(1.0, mix(0.1, 1.0, near), uCut));",
+      "  if(fade < 0.99){ float n = h(floor(gl_FragCoord.xy) + uSeed); if(n > fade) discard; }",
       "  vec3 c = uCol*vCol;",
       // spots: cells on the dome, scattered, round
       "  vec2 q = vec2(atan(vL.z, vL.x)*2.2, vL.y*5.0) + uSeed; vec2 cell = floor(q); vec2 f = fract(q) - 0.5;",

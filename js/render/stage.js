@@ -107,6 +107,7 @@ S.updateCamera = function(dt){
   S.moon.target.position.set(R.tx, 0, R.tz);
   S.moon.position.set(R.tx, 0, R.tz).addScaledVector(S.MOON_DIR, 90);
   S.sky.position.copy(S.camera.position); S.stars.position.copy(S.camera.position);
+  K.sight.uCam.value.copy(S.camera.position); K.sight.uTgt.value.set(R.tx, 0.6, R.tz);
 };
 
 S.loop = function(){

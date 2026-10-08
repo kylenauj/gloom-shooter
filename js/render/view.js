@@ -90,7 +90,7 @@ class BattleView {
     const ov = this.ov = new THREE.Group(); S.scene.add(ov);
     const M = this.b.map;
     const q = new THREE.PlaneGeometry(K.T*0.92, K.T*0.92); q.rotateX(-Math.PI/2);
-    this.range = new THREE.InstancedMesh(q, new THREE.MeshBasicMaterial({ map:tileTex, transparent:true, depthWrite:false, opacity:0.75 }), M.w*M.h);
+    this.range = new THREE.InstancedMesh(q, new THREE.MeshBasicMaterial({ map:tileTex, transparent:true, depthWrite:false, opacity:0.75, blending:THREE.AdditiveBlending }), M.w*M.h);
     this.range.count = 0; this.range.frustumCulled = false; ov.add(this.range);
     const d = new THREE.CircleGeometry(0.16, 10); d.rotateX(-Math.PI/2);
     this.dots = new THREE.InstancedMesh(d, new THREE.MeshBasicMaterial({ color:0xbff6ff, transparent:true, depthWrite:false }), 80);
@@ -365,7 +365,7 @@ class BattleView {
     S.scene.remove(A.R.root); A.label.remove();
   }
   async podDrop(p){
-    const pod = new THREE.Mesh(K.lump(0.8, 1, 0.3), new THREE.MeshLambertMaterial({ color:0x3a1640, emissive:0x2a0a2a, flatShading:true }));
+    const pod = new THREE.Mesh(K.lump(0.8, 1, 0.3), new THREE.MeshLambertMaterial({ color:0x3a1640, emissive:0x2a0a2a }));
     pod.position.copy(p); pod.position.y += 30; S.scene.add(pod);
     S.focus(p.x, p.z);
     await FX.tween(0.7/this.speed, k=>{ pod.position.y = p.y + 30*(1 - k*k) + 0.6; pod.rotation.x += 0.1; });
