@@ -1,0 +1,12 @@
+{
+  "name": "gloom-shooter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A mushroom-themed turn-based tactics game: XCOM 2 x Mechanicus x Jagged Alliance, built on the Pine Hollow Rally asset kit.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "balance": "node tests/balance.js",
+    "start": "npx --yes http-server -p 8080 -c-1 ."
+  },
+  "license": "UNLICENSED"
+}
