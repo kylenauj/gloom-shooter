@@ -40,6 +40,8 @@ function squadFor(seed, rank, tier, size){
     mods:tier ? [rng.pick(Object.keys(GS.MODS))] : [] }, { weaponTier:tier, armorTier:tier }));
 }
 
+const OFFENSIVE = new Set(["fire", "aimed", "deadeye", "breach", "lumenShot", "hail", "lunge", "whirl", "glowburst", "starfall", "mortar", "item:blastcap", "item:flare", "rootSnare", "suppress"]);
+
 /* ---- one battle, start to finish ---- */
 function playBattle(b, persona, repro, seed){
   const W = new Ghost.Watch(audit, b, repro), rng = GS.RNG(seed*31 + 7);
@@ -58,7 +60,12 @@ function playBattle(b, persona, repro, seed){
         if(b.over) break;
         if(!b.able(u)) continue;
         if(persona === "fuzz") Ghost.fuzzUnit(b, u, rng, rec, contract);
-        else Ghost.smartUnit(b, u, persona, rec);
+        else {
+          // did a warden who could see the Gloom find anything worth doing?
+          const sees = b.gloom().some(g=> b.visible(g) && !g.structure);
+          const tried = Ghost.smartUnit(b, u, persona, rec);
+          if(sees && persona === "smart"){ audit.m.feel.unitTurns++; if(!tried.some(t=> t.ok && OFFENSIVE.has(t.id))) audit.m.feel.idleTurns++; }
+        }
       }
       if(b.over) break;
       // the other side's turn is out of bounds for the squad: try acting during it
@@ -70,7 +77,7 @@ function playBattle(b, persona, repro, seed){
     }
     if(!b.over) audit.find("major", "softlock", "A battle didn't end within " + CFG.maxRounds + " rounds", "gloom left: " + b.gloom().map(g=> g.type + (g.active ? "" : "(dormant)")).join(","), W.rp());
   }catch(err){ W.crash("battle (" + persona + ")", err); }
-  b.drain();
+  b.drain(); W.finish();
   const key = persona + "|t" + repro.threat;
   const S = audit.m.battles[key] = audit.m.battles[key] || { n:0, wins:0, rounds:0, deaths:0, downs:0 };
   const sum = b.summary();
@@ -219,6 +226,50 @@ function analyse(){
   if(M.gloomTurnMs.length){ const avg = M.gloomTurnMs.reduce((s, x)=> s + x, 0)/M.gloomTurnMs.length; if(avg > 60) F("minor", "perf", "The Gloom's turn is slow to think", avg.toFixed(0) + " ms on average"); }
 }
 
+/* ---- opportunities: not bugs, but places the game could be better ----
+   Each comes with the evidence behind it and a first idea. The scout (the
+   ghost-audit skill) turns these, plus what it sees in the screenshots,
+   into the backlog. */
+const pct = (a, b)=> b ? Math.round(100*a/b) : 0;
+const median = a=>{ if(!a.length) return 0; const s = a.slice().sort((x, y)=> x - y); return s[Math.floor(s.length/2)]; };
+const p90 = a=>{ if(!a.length) return 0; const s = a.slice().sort((x, y)=> x - y); return s[Math.floor(s.length*0.9)]; };
+function opportunities(){
+  const M = audit.m, F = M.feel, out = [], O = (impact, area, title, evidence, idea)=> out.push({ impact, area, title, evidence, idea });
+  if(!F.battles) return out;
+  const contact = median(F.contact.filter(c=> c < 99));
+  if(contact >= 3) O("med", "pacing", "A slow walk before the first fight", "median first sight of the Gloom: round " + contact, "Start pods closer, give the squad a scouting tool (a spore-sniffer flare), or open some missions mid-contact.");
+  const wait = median(F.enemyTurnSec), long = p90(F.enemyTurnSec);
+  if(wait > 7 || long > 14) O("high", "feel", "Waiting on the Gloom's turn", "enemy turns take ~" + wait.toFixed(1) + " s (median), " + long.toFixed(1) + " s at the slowest 10%", "Animate dormant pods' wandering instantly, overlap moves of different creatures, and add a hold-to-fast-forward.");
+  if(F.gloomHits >= 30 && F.unseenHits/F.gloomHits > 0.2) O("high", "clarity", "Wardens get hit by things they can't see", pct(F.unseenHits, F.gloomHits) + "% of hits on the squad came from Gloom outside its vision", "Reveal an attacker for a moment when it fires (a muzzle flare in the fog), and show the shooter's position on the HUD.");
+  const streaky = F.streaks.filter(x=> x >= 3).length;
+  if(F.battles >= 20 && streaky/F.battles > 0.2) O("med", "feel", "Streaks of misses on good shots", pct(streaky, F.battles) + "% of battles had 3+ misses in a row at 60%+ shown", "Consider XCOM's hidden streak-breaker (+aim after each miss) or a 'Steady' stack that builds on misses.");
+  if(F.firstShots >= 20 && F.firstShotMiss/F.firstShots > 0.3) O("med", "feel", "The ambush opener misses too often", pct(F.firstShotMiss, F.firstShots) + "% of opening shots at 60%+ missed", "Give the first shot from concealment an ambush bonus (+15 aim, +crit), so setting up an ambush pays off.");
+  if(F.unitTurns >= 50 && F.idleTurns/F.unitTurns > 0.25) O("med", "depth", "Turns with nothing useful to do", pct(F.idleTurns, F.unitTurns) + "% of warden turns with the Gloom in sight ended without an attack or spell", "More cheap actions: a 1-AP shove, a spore grenade for everyone, marking a target for allies, or a defensive stance that does something.");
+  const ow = F.owShots.squad;
+  if(F.battles >= 20 && ow.n/F.battles < 0.6) O("low", "depth", "Overwatch rarely gets to fire", (ow.n/F.battles).toFixed(2) + " squad overwatch shots per battle, " + pct(ow.hit, ow.n) + "% hit", "Make the Gloom move through sight lines more (flanking AI), or let overwatch also trigger on enemies that attack.");
+  if(F.battles >= 20 && F.earlyLosses/F.battles > 0.3) O("high", "feel", "The first exchange is brutal", pct(F.earlyLosses, F.battles) + "% of battles lost a warden (down or dead) within a round of first contact", "Soften pod activation (scamper without overwatch), or make the first enemy volley less accurate.");
+  const rv = F.revealBy.spotted + F.revealBy.attack;
+  if(rv >= 20 && F.revealBy.spotted/rv > 0.5) O("med", "depth", "Concealment breaks before you can use it", pct(F.revealBy.spotted, rv) + "% of reveals were the squad being spotted, not ambushing", "Show the Gloom's detection radius on tiles while concealed (XCOM's red tiles), so ambushes can be planned.");
+  // what the abilities are worth, per use
+  const fire = F.abilityDmg.fire, base = fire && fire.uses ? fire.dmg/fire.uses : 0;
+  Object.entries(F.abilityDmg).forEach(([id, d])=>{
+    if(id === "fire" || d.uses < 25 || !base || !OFFENSIVE.has(id)) return;
+    const v = d.dmg/d.uses;
+    if(v < base*0.6 && !["rootSnare", "suppress", "item:flare"].includes(id)) O("low", "balance", (GS.ABILITIES[id] || GS.ITEMS[id.slice(5)] || { name:id }).name + " is weaker than just firing", v.toFixed(1) + " damage per use vs " + base.toFixed(1) + " for Fire (" + d.uses + " uses)", "Raise its payoff or lower its cost, or give it a job Fire can't do.");
+  });
+  const avg = M.rounds.length ? M.rounds.reduce((x, y)=> x + y, 0)/M.rounds.length : 0;
+  if(avg && avg < 6) O("low", "pacing", "Battles end quickly", avg.toFixed(1) + " rounds on average", "Room for mid-battle twists: a second objective, a spore-pod landing on a timer, or an evac.");
+  const cs = M.campaigns;
+  if(cs.length >= 6){
+    const sweeps = cs.filter(c=> c.outcome === "victory" && c.fights.lost === 0).length, wiped = cs.filter(c=> c.outcome === "defeat" && c.weeks <= 10).length;
+    if(sweeps + wiped >= cs.length*0.7) O("high", "campaign", "Campaigns snowball: they're decided in the first weeks", sweeps + " flawless wins and " + wiped + " early defeats out of " + cs.length, "Mid-campaign pressure for strong squads (a Gloom counter-offensive, the Chosen-style nemesis), and catch-up for struggling ones (cheaper recruits, a rescue mission).");
+  }
+  const types = Object.keys(GS.ENEMIES).filter(k=> !GS.ENEMIES[k].structure && !GS.ENEMIES[k].boss).length;
+  if(types < 8) O("med", "content", "A small roster of Gloom", types + " regular creature types", "New creatures that ask new questions: a flier that ignores cover, a burrower that pops up behind the line, a spore-totem that buffs nearby rot.");
+  const RANK = { high:0, med:1, low:2 };
+  return out.sort((a, b)=> RANK[a.impact] - RANK[b.impact]);
+}
+
 /* ---- the report ---- */
 const SEV = { critical:0, major:1, minor:2, info:3 }, COST = { critical:25, major:8, minor:2, info:0 };
 function report(browser){
@@ -240,7 +291,8 @@ function report(browser){
   const fresh = prev ? summary.fingerprints.filter(k=> !prev.fingerprints.includes(k)) : [];
   const gone = prev ? prev.fingerprints.filter(k=> !summary.fingerprints.includes(k)) : [];
   fs.appendFileSync(histPath, JSON.stringify(summary) + "\n");
-  fs.writeFileSync(path.join(CFG.out, "report.json"), JSON.stringify({ summary, config:CFG, findings, metrics:M, browser, diff:{ fresh, gone } }, null, 1));
+  const opps = opportunities();
+  fs.writeFileSync(path.join(CFG.out, "report.json"), JSON.stringify({ summary, config:CFG, findings, opportunities:opps, metrics:M, browser, diff:{ fresh, gone } }, null, 1));
 
   const L = [];
   L.push("# Ghost audit", "", "_" + summary.when + " · commit " + summary.commit + " · " + summary.battles + " battles · " + summary.campaigns + " campaigns · " + summary.seconds + " s_", "");
@@ -253,6 +305,11 @@ function report(browser){
     f.examples.forEach(e=>{ if(e.detail) L.push("- " + e.detail); if(e.repro) L.push("  - repro: `" + JSON.stringify(e.repro) + "`"); });
     L.push("");
   });
+  L.push("## Opportunities", "", "Not bugs: places the game could play better. Each has the evidence behind it and a first idea.", "");
+  if(!opps.length) L.push("None flagged this run.", "");
+  else { L.push("| impact | area | opportunity | evidence | first idea |", "|---|---|---|---|---|"); opps.forEach(o=> L.push("| " + o.impact + " | " + o.area + " | " + o.title + " | " + o.evidence + " | " + o.idea + " |")); L.push(""); }
+  const F = M.feel;
+  if(F.battles) L.push("Feel: first contact round " + median(F.contact.filter(c=> c < 99)) + " · enemy turn ~" + median(F.enemyTurnSec).toFixed(1) + " s (p90 " + p90(F.enemyTurnSec).toFixed(1) + " s) · unseen hits " + pct(F.unseenHits, F.gloomHits) + "% · 3+ miss streaks in " + pct(F.streaks.filter(x=> x >= 3).length, F.battles) + "% of battles · idle warden turns " + pct(F.idleTurns, F.unitTurns) + "% · squad overwatch " + (F.owShots.squad.n/F.battles).toFixed(2) + "/battle", "");
   L.push("## Balance", "", "| persona · threat | battles | won | rounds | dead/battle |", "|---|---|---|---|---|");
   Object.keys(M.battles).sort().forEach(k=>{ const s = M.battles[k]; L.push("| " + k.replace("|t", " · ") + " | " + s.n + " | " + Math.round(100*s.wins/s.n) + "% | " + (s.rounds/s.n).toFixed(1) + " | " + (s.deaths/s.n).toFixed(2) + " |"); });
   L.push("", "| class | deployed | dmg/battle | kills/battle | downed | died |", "|---|---|---|---|---|---|");

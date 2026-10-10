@@ -27,7 +27,10 @@ const EVENT_TYPES = new Set(["log", "turn", "vis", "focus", "step", "attack", "d
 Ghost.Audit = class {
   constructor(){
     this.findings = new Map();
-    this.m = { battles:{}, abilities:{}, calib:{}, classes:{}, enemies:{}, rounds:[], tideMax:[], gloomTurnMs:[], campaigns:[], timing:{} };
+    this.m = { battles:{}, abilities:{}, calib:{}, classes:{}, enemies:{}, rounds:[], tideMax:[], gloomTurnMs:[], campaigns:[], timing:{},
+      // how it feels to play: measured from the same events the screen animates
+      feel:{ battles:0, contact:[], enemyTurnSec:[], squadTurnSec:[], gloomHits:0, unseenHits:0, streaks:[], owShots:{ squad:{ n:0, hit:0 }, gloom:{ n:0, hit:0 } },
+             abilityDmg:{}, earlyLosses:0, revealBy:{ spotted:0, attack:0 }, idleTurns:0, unitTurns:0, firstShotMiss:0, firstShots:0 } };
   }
   /* one finding per fingerprint; repeats just count */
   find(sev, cat, title, detail, repro){
@@ -48,6 +51,8 @@ Ghost.Watch = class {
     this.A = audit; this.b = b; this.repro = repro;
     this.pos = {}; this.who = {}; this.dead = new Set(); this.ended = false; this.ends = 0;
     this.lastTide = b.tide; this.lastRound = b.round; this.src = null; this.dmgBy = {};
+    // what the player can see, as the screen would show it (from the vis events)
+    this.seenNow = new Set(); this.team = "squad"; this.round = 1; this.turnSec = 0; this.streak = 0; this.longest = 0; this.contact = null; this.srcAb = null; this.firstShot = true;
     b.units.forEach(u=> this.know(u));
     b.units.forEach(u=>{ if(u.team === "squad") audit.cls(u.cls).deployed++; else audit.enemy(u.type).spawned++; });
     // read every event in the order the view will play it: as the queue is drained
@@ -60,6 +65,7 @@ Ghost.Watch = class {
 
   /* the event stream the view animates */
   onEvent(e){
+    this.feel(e);
     const A = this.A, b = this.b;
     if(!EVENT_TYPES.has(e.type)) A.find("major", "events", "Unknown event type '" + e.type + "'", "", this.rp());
     if(this.ended && e.type !== "log") A.find("major", "events", "Event '" + e.type + "' after the battle ended", "", this.rp());
@@ -102,6 +108,55 @@ Ghost.Watch = class {
       case "tide": if(e.value < this.lastTide) A.find("major", "rules", "The Gloom Tide went down", e.value + " < " + this.lastTide, this.rp()); this.lastTide = e.value; break;
       case "end": this.ended = true; if(++this.ends > 1) A.find("major", "events", "The battle ended twice", "", this.rp()); break;
     }
+  }
+
+  /* ---- feel: the experience behind the numbers ----
+     Estimated screen time per event mirrors view.js (hidden units' moves are instant). */
+  feel(e){
+    const F = this.A.m.feel, W = e.id ? this.who[e.id] : null, shown = id=> !id || (this.who[id] && this.who[id].team === "squad") || this.seenNow.has(id);
+    const SEC = { turn:0.7, focus:0.38, step:0.15, attack:0.6, death:0.45, aoe:0.42, cast:0.4, heal:0.35, overwatch:0.25, activate:0.7, tideStep:1.1, spawn:0.35, reveal:0.6, chorus:0.9, harvest:0.5 };
+    if(SEC[e.type] && (e.type !== "step" && e.type !== "focus" || shown(e.id))) this.turnSec += e.type === "aoe" && e.fx === "pod" ? 1.0 : SEC[e.type];
+    switch(e.type){
+      case "vis": this.seenNow = new Set(e.seen);
+        if(this.contact === null && e.seen.some(id=> this.who[id] && !(GS.ENEMIES[this.who[id].type] || {}).structure)) this.contact = this.round; break;
+      case "turn":
+        if(this.started) (this.team === "gloom" ? F.enemyTurnSec : F.squadTurnSec).push(this.turnSec);
+        this.started = true;
+        this.team = e.team; this.round = e.round; this.turnSec = 0; break;
+      case "reveal": F.revealBy[this.lastSquadAttack ? "attack" : "spotted"]++; break;
+      case "cast": this.srcAb = e.ability; break;
+      case "attack": {
+        this.srcAb = e.ability;
+        const T = this.who[e.target];
+        if(W && W.team === "gloom" && T && T.team === "squad"){ F.gloomHits += e.hit ? 1 : 0; if(e.hit && !this.seenNow.has(e.id)) F.unseenHits++; }
+        if(W && W.team === "squad"){
+          this.lastSquadAttack = true;
+          if(e.reaction !== "overwatch" && e.chance < 100){
+            if(this.firstShot){ this.firstShot = false; F.firstShots++; if(!e.hit && e.chance >= 60) F.firstShotMiss++; }
+            if(!e.hit && e.chance >= 60){ this.streak++; this.longest = Math.max(this.longest, this.streak); } else if(e.hit) this.streak = 0;
+          }
+        }
+        if(e.reaction === "overwatch" && W){ const o = F.owShots[W.team]; o.n++; if(e.hit) o.hit++; }
+        if(W && W.team === "squad" && e.hit){ const d = F.abilityDmg[e.ability] = F.abilityDmg[e.ability] || { uses:0, dmg:0 }; d.dmg += e.dmg; }
+        if(W && W.team === "squad"){ const d = F.abilityDmg[e.ability] = F.abilityDmg[e.ability] || { uses:0, dmg:0 }; d.uses++; }
+        break; }
+      case "damage": {
+        const S = this.src && this.who[this.src];
+        if(S && S.team === "squad" && this.srcAb && this.lastType === "cast-dmg"){ const d = F.abilityDmg[this.srcAb] = F.abilityDmg[this.srcAb] || { uses:0, dmg:0 }; d.dmg += e.amount; }
+        break; }
+      case "downed": case "death":
+        if(W && W.team === "squad" && this.contact !== null && this.round <= this.contact + 1) this.early = true;
+        break;
+    }
+    if(e.type === "cast"){ this.lastType = "cast-dmg"; const S = this.who[e.id]; if(S && S.team === "squad"){ const d = F.abilityDmg[e.ability] = F.abilityDmg[e.ability] || { uses:0, dmg:0 }; d.uses++; } }
+    else if(e.type === "attack" || e.type === "turn") this.lastType = e.type;
+    if(e.type === "end") this.finish();
+  }
+  finish(){
+    if(this.done) return; this.done = true;
+    const F = this.A.m.feel;
+    F.battles++; F.contact.push(this.contact === null ? 99 : this.contact); F.streaks.push(this.longest);
+    if(this.early) F.earlyLosses++;
   }
 
   /* the state after every action */
