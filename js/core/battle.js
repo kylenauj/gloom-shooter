@@ -92,7 +92,10 @@ class Battle {
   }
 
   /* ---- bookkeeping ---- */
-  emit(e){ this.events.push(e); }
+  emit(e){
+    const end = this.over && e.type !== "end" ? this.events.findIndex(x=> x.type === "end") : -1;
+    if(end >= 0) this.events.splice(end, 0, e); else this.events.push(e);
+  }
   drain(){ const e = this.events; this.events = []; return e; }
   log(text, cls){ this.emit({ type:"log", text, cls:cls || "" }); }
   unit(id){ return this.units.find(u=> u.id === id); }
@@ -177,7 +180,8 @@ class Battle {
     members.forEach(g=> g.active = true);
     this.emit({ type:"activate", ids:members.map(g=> g.id) });
     this.log(members.length > 1 ? members.length + " Gloom creatures stir and scatter for cover." : "A " + members[0].name + " stirs.", "warn");
-    members.forEach(g=>{ if(!this.over && this.able(g)) GS.AI.scamper(this, g); });
+    // (a member already on the move just keeps going: it doesn't scramble mid-stride)
+    members.forEach(g=>{ if(!this.over && this.able(g) && !g.moving) GS.AI.scamper(this, g); });
   }
 
   /* ---- movement ---------------------------------------------------------- */
@@ -195,7 +199,7 @@ class Battle {
     const m = this.moveCost(u, x, y, opts.R);
     if(!m || !m.path || !m.path.length) return false;
     if(!opts.free){ if(m.ap > u.ap) return false; u.ap -= m.ap; }
-    u.moved = true;
+    u.moved = true; u.moving = true;
     for(const s of m.path){
       if(this.unitAt(s.x, s.y)) break;          // (something moved into the way: stop short)
       u.x = s.x; u.y = s.y;
@@ -206,7 +210,9 @@ class Battle {
       else if(this.concealed) this.detect();
       this.reactions(u);
       if(!this.able(u) || this.over) break;
+      if(u.x !== s.x || u.y !== s.y) break;     // something moved it mid-path: the rest of the path is stale
     }
+    u.moving = false;
     if(u.team === "gloom") this.refreshVision();
     this.checkOver();
     return true;
@@ -284,6 +290,7 @@ class Battle {
     if(id === "reload" && u.ammo >= u.weapon.clip) return "Full";
     if(id === "overclock" && u.overclocked) return "Already overclocked";
     if(D.attack || D.target === "enemy"){ if(!this.targetsFor(u, id).length) return "No target"; }
+    if(["ally", "allyOther", "downed", "node"].includes(D.target) && !this.targetsFor(u, id).length) return D.target === "downed" ? "No one is down" : "No one in range";
     if(D.target === "adjacent" && !this.foesOf(u).some(v=> this.adjacent(u, v) && this.visible(v))) return "No one adjacent";
     return null;
   }
@@ -597,7 +604,7 @@ class Battle {
     const C = GS.CHORUS[id];
     if(!C || this.chorusUsed[id] || this.team !== "squad" || this.over || !(this.mods.chorus || []).includes(id)) return false;
     this.chorusUsed[id] = true;
-    this.emit({ type:"chorus", id });
+    this.emit({ type:"chorus", song:id });
     this.log("The squad sings the " + C.name + ".", "good");
     this.squad().filter(u=> !u.downed).forEach(u=>{
       if(C.status) this.addStatus(u, C.status, 1);
@@ -733,7 +740,9 @@ GS.Battle = Battle;
 GS.setupBattle = function(o){
   // o: { seed, type, threat, squad:[unit], mods, where }
   const type = o.type || "purge", threat = o.threat || 2;
-  const map = Grid.generate({ seed:o.seed, type, pods:type === "finale" ? 3 : 2 + (threat >= 4 ? 1 : 0) + (threat >= 7 ? 1 : 0), w:o.w || 22, h:o.h || 22 });
+  // what each threat level fields: pods, and how much Gloom is in each (tuned with the ghost: tools/ghost)
+  const T = GS.clamp(threat, 1, 8), PODS = [0, 2, 2, 2, 3, 3, 4, 4, 4], BUDGET = [0, 3, 4, 4, 5, 6, 8, 10, 12];
+  const map = Grid.generate({ seed:o.seed, type, pods:type === "finale" ? 3 : PODS[T], w:o.w || 22, h:o.h || 22 });
   const rng = GS.RNG(o.seed*7 + 3);
   const enemies = [];
   const pool = threat <= 1 ? ["rotling", "rotling", "spitter"] :
@@ -741,15 +750,16 @@ GS.setupBattle = function(o){
                threat <= 5 ? ["rotling", "spitter", "bloater", "husk", "shaman"] :
                              ["spitter", "husk", "shaman", "bloater", "husk"];
   map.pods.forEach((p, pi)=>{
-    let budget = 2 + Math.ceil(threat*0.8);
+    let budget = BUDGET[T];
     const members = [];
-    while(budget > 0 && members.length < 4){
+    while(budget > 0 && members.length < (T >= 6 ? 5 : 4)){
       const t = rng.pick(pool), c = GS.ENEMIES[t].cost;
       if(c > budget && members.length) break;
       members.push(t); budget -= c;
     }
     const spots = [];
-    for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++){ const x = p.x + dx, y = p.y + dy; if(Grid.passable(map, x, y)) spots.push([x, y]); }
+    const taken = (x, y)=> (map.heart && map.heart.x === x && map.heart.y === y) || enemies.some(e=> e.x === x && e.y === y);
+    for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++){ const x = p.x + dx, y = p.y + dy; if(Grid.passable(map, x, y) && !taken(x, y)) spots.push([x, y]); }
     rng.shuffle(spots);
     members.forEach((t, k)=>{ const s = spots[k]; if(s) enemies.push({ type:t, x:s[0], y:s[1], pod:"p" + pi }); });
   });
@@ -757,7 +767,10 @@ GS.setupBattle = function(o){
     if(type === "heart") enemies.push({ type:"heart", x:map.heart.x, y:map.heart.y, pod:null });
     if(type === "finale"){
       enemies.push({ type:"sporelord", x:map.heart.x, y:map.heart.y, pod:"crown" });
-      [[-1,1],[1,1]].forEach(([dx, dy])=> enemies.push({ type:"shaman", x:map.heart.x + dx, y:map.heart.y + dy, pod:"crown" }));
+      // two shamans at its side: on open ground, never on a pod member's tile
+      let shamans = 0;
+      [[-1,1],[1,1],[-1,0],[1,0],[0,1],[-1,-1],[1,-1]].forEach(([dx, dy])=>{ const x = map.heart.x + dx, y = map.heart.y + dy;
+        if(shamans < 2 && Grid.passable(map, x, y) && !enemies.some(e=> e.x === x && e.y === y)){ enemies.push({ type:"shaman", x, y, pod:"crown" }); shamans++; } });
     }
   }
   return new Battle({ map, squad:o.squad, enemies, seed:o.seed*13 + 1, mods:Object.assign({ threat }, o.mods),

@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 *.log
+# the ghost's working files (REPORT.md and history.jsonl are kept, so runs can be compared across sessions)
+audit/shots/
+audit/report.json

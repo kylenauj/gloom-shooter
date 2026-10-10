@@ -46,21 +46,25 @@ H.mount = function(view, opts){
   H.v = view; H.b = view.b; H.o = opts || {};
   const el = H.el = document.getElementById("hud");
   el.innerHTML = [
-    '<div class="h-top">',
+    // three columns: the mission and the squad on the left, the meters centred, the buttons, target and log on the right
+    '<div class="h-left">',
     '  <div class="h-mission plate"><b id="hMission"></b><span id="hObj"></span><span id="hRound"></span></div>',
-    '  <div class="h-meters plate"><div class="h-tide"><label>GLOOM TIDE</label><div id="hTide"></div><span id="hTideName"></span></div>',
-    '    <div class="h-lumen"><label>LUMEN</label><div id="hLumen"></div></div><div id="hConceal"></div></div>',
+    '  <div class="h-squad" id="hSquad"></div>',
+    '</div>',
+    '<div class="h-meters plate"><div class="h-tide"><label>GLOOM TIDE</label><div id="hTide"></div><span id="hTideName"></span></div>',
+    '  <div class="h-lumen"><label>LUMEN</label><div id="hLumen"></div></div><div id="hConceal"></div></div>',
+    '<div class="h-right">',
     '  <div class="h-sys"><div id="hChorus"></div>',
     '    <button class="hb" id="hRotL" title="Turn camera (Q)">' + H.icon("rotl") + '</button><button class="hb" id="hRotR" title="Turn camera (E)">' + H.icon("rotr") + '</button>',
     '    <button class="hb" id="hFast" title="Fast enemy turns">' + H.icon("fast") + '</button><button class="hb" id="hMute" title="Sound (M)"></button>',
     '    <button class="hb" id="hRetreat" title="Retreat">' + H.icon("flag") + '</button></div>',
+    '  <div class="h-target plate" id="hTarget"></div><div class="h-log plate" id="hLog"></div>',
     '</div>',
-    '<div class="h-squad" id="hSquad"></div>',
-    '<div class="h-right"><div class="h-target plate" id="hTarget"></div><div class="h-log plate" id="hLog"></div></div>',
     '<div class="h-bottom"><div class="h-unit plate" id="hUnit"></div><div class="h-abil" id="hAbil"></div><div class="h-desc" id="hDesc"></div></div>',
     '<button class="h-end" id="hEnd">END TURN <small>↵</small></button>'
   ].join("");
   el.hidden = false;
+  if(matchMedia("(max-width:560px)").matches) el.querySelector(".h-left").insertBefore(el.querySelector(".h-meters"), el.querySelector(".h-squad"));
   H.$ = id=> document.getElementById(id);
   H.$("hEnd").onclick = ()=> view.endTurn();
   H.$("hRotL").onclick = ()=> GS.Stage.turn(-1);
@@ -212,7 +216,8 @@ H.toast = function(text){
 H.key = function(e){
   const v = H.v; if(!v) return false;
   const k = e.key;
-  if(k >= "1" && k <= "9"){ const id = (H.actions || [])[+k - 1]; if(id){ v.setMode(id); return true; } }
+  // read the live list, not the last drawn one: a key pressed right after switching wardens must hit the new warden's ability
+  if(k >= "1" && k <= "9"){ const u = v.selUnit(); const a = u ? v.b.actionsFor(u).filter(x=> !x.passive)[+k - 1] : null; if(a){ v.setMode(a.id); return true; } }
   if(k === "Tab"){ v.nextUnit(e.shiftKey ? -1 : 1); return true; }
   if(k === "Escape"){ if(v.mode){ v.cancel(); return true; } return false; }
   if(k === "Enter"){ v.endTurn(); return true; }

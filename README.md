@@ -39,6 +39,33 @@ URL shortcuts for testing:
 
 On touch screens, tap once to aim and tap again to confirm.
 
+## The ghost: automated playtesting
+
+`tools/ghost/` is a playtester that plays the game and audits it:
+
+- **Headless:** hundreds of battles (a smart player, an aggressive one, and a fuzzer that also tries illegal moves) and whole campaigns.
+- **In the browser:** the real page in Chromium, at desktop, laptop and phone sizes.
+
+Every action is checked against the rules: units in walls, two on a tile, HP and AP out of range, softlocks, events out of order, illegal actions accepted. In the page it also checks that the screen matches the rules, that real clicks and keys work, and that the HUD fits.
+
+The results go into `audit/REPORT.md`, worst first with a seed to reproduce each finding. Each run is scored and compared with the last one in `audit/history.jsonl`.
+
+```sh
+npm run ghost         # headless, ~1 min
+npm run ghost:full    # plus the browser pass, ~5 min
+```
+
+The **AI** half is a Claude Code agent and skill that closes the loop: `.claude/agents/ghost-auditor.md` and `/ghost-audit`. The agent:
+
+1. runs the ghost;
+2. reads the report;
+3. looks at every screenshot for problems the checks can't see;
+4. fixes the worst few problems, each reproduced from its seed and covered by a regression test;
+5. re-runs to prove the fixes;
+6. commits with the score.
+
+Run it on demand, or on a schedule so the game keeps getting better.
+
 ## Develop
 
 ```sh

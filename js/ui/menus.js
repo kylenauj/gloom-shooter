@@ -60,7 +60,7 @@ UI.howto = function(app){
     "<p><b>The Gloom Tide</b> rises every round, and every time you drain a node. At 3 the Gloom gets +10 aim, at 6 and 9 spore pods drop reinforcements, at 12 they never stop. Don't dawdle.</p>" +
     "<p><b>The Chorus.</b> Once a mission each, a squad song: a free buff for everyone. Research more.</p>" +
     "<p><b>Wounds.</b> A warden at 0 HP is usually <b>down and bleeding</b>: stabilize them (1 AP, adjacent) or win before they bleed out. Some just die.</p>" +
-    "<p><b>The Hollow.</b> Each week, pick one mission; the regions you ignore rot further. Spore samples pay for research; caps pay wages, recruits and the Workshop. Promote wardens and choose one of two skills at each rank.</p>" +
+    "<p><b>The Hollow.</b> Each week, pick one mission; the most dangerous one you skip rots further, and the Gloom spreads from its strongholds. Spore samples pay for research; caps pay wages, recruits and the Workshop. Promote wardens and choose one of two skills at each rank.</p>" +
     '<p class="keys"><kbd>1</kbd>–<kbd>9</kbd> abilities · <kbd>Tab</kbd> next warden · <kbd>Esc</kbd> cancel · <kbd>Enter</kbd> end turn · <kbd>Q</kbd>/<kbd>E</kbd> turn camera · <kbd>WASD</kbd> pan · wheel zoom · <kbd>M</kbd> sound</p>' +
     "</div></div>");
   on("[data-go=back]", ()=> UI.title(app));
@@ -93,7 +93,8 @@ UI.hollow = function(app, tab, sel){
   const head = '<div class="hollow-top plate"><b>GLOWCAP HOLLOW</b><span>Week <b>' + camp.week + '</b></span><span title="Caps pay wages, recruits and the Workshop">' + ico("gem") + " <b>" + camp.caps + '</b> caps</span>' +
     '<span title="Spore samples pay for research">' + ico("root") + " <b>" + camp.samples + "</b> samples</span>" +
     '<span title="Income from glowfarms in safe regions, less wages">+' + C.income(camp) + " / −" + C.wages(camp) + " a week</span>" +
-    '<span class="fg" title="When the forest\'s total Gloom reaches 27, or the Hollow\'s reaches 5, the campaign is lost">Forest Gloom <b>' + C.forestGloom(camp) + "</b>/27</span></div>";
+    '<span class="fg" title="When the forest\'s total Gloom reaches 27, or the Hollow\'s reaches 5, the campaign is lost">Forest Gloom <b>' + C.forestGloom(camp) + "</b>/27</span>" +
+    (camp.regions.hollow.gloom >= 3 ? '<span class="danger">The Hollow is at Gloom <b>' + camp.regions.hollow.gloom + "</b>/5: defend it</span>" : "") + "</div>";
   const tabs = '<div class="menu tabs">' + TABS.map(t=> '<button class="item' + (t[0] === tab ? " sel" : "") + '" data-tab="' + t[0] + '"><span>' + t[1] + "</span>" +
     (t[0] === "squad" && camp.roster.some(C.canPromote) ? '<small class="dot">promotion</small>' : "") +
     (t[0] === "research" && !camp.research.current ? '<small class="dot">idle</small>' : "") + "</button>").join("") +
@@ -133,7 +134,7 @@ UI.tab_map = function(app, sel){
   const detail = m ? '<div class="plate mdetail"><h3>' + esc(C.missionName(m)) + "</h3><p>" + esc(GS.MISSION_TYPES[m.type].desc) + "</p>" +
     '<div class="kv"><span>Threat</span><b>' + "◆".repeat(m.threat) + '</b><span>Region gloom</span><b>' + camp.regions[m.region].gloom + "/5</b>" +
     (m.reward.caps ? '<span>Reward</span><b>' + m.reward.caps + " caps, " + m.reward.samples + " samples + kills</b>" : "") + "</div>" +
-    '<p class="warn">The other ' + (camp.missions.length - 1) + " mission" + (camp.missions.length === 2 ? "" : "s") + " will go unanswered: those regions rot further.</p>" +
+    '<p class="warn">The most dangerous mission you skip goes unanswered: its region rots further.</p>' +
     '<button class="item sel" data-go="deploy"><span>Choose the squad</span></button></div>'
     : '<div class="plate mdetail"><h3>This week</h3>' + camp.missions.map(mm=> '<button class="item" data-m="' + mm.id + '"><span>' + esc(C.missionName(mm)) + "</span><small>Threat " + mm.threat + "</small></button>").join("") + "</div>";
   return '<div class="mapwrap">' + svg + detail + "</div>";

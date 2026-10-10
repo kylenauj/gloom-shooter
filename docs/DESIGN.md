@@ -261,7 +261,21 @@ That's why the rules are fully testable headless, the AI can search freely, and 
 
 ---
 
-## 9. Roadmap
+## 9. Quality: the ghost
+
+Quality is kept up by an automated playtester and an AI agent that acts on what it finds. See `tools/ghost/`, `.claude/skills/ghost-audit/SKILL.md` and the README.
+
+The ghost found and helped fix these in its first runs:
+
+- **Teleporting.** A patrolling unit woken by overwatch mid-move scrambled for cover, then finished its old path from its new spot.
+- **Enemy inside the Heart.** A pod member could spawn on the Gloom Heart's tile.
+- **Phantom ability buttons.** Ally spells (Rebirth) lit up with no one to target.
+- **Out-of-order events.** A winning blast's after-effects played after the VICTORY banner.
+- **Stale number keys.** A key pressed right after switching wardens fired the previous warden's ability.
+- **Rigged campaign.** Defeat was all but certain (the Gloom grew ~3 a week even while winning every fight). Rookies faced threat 3–4 in week one. The Hollow could be lost with no warning or chance to defend it.
+- **HUD layout.** Panels overlapped on laptop and phone screens.
+
+## 10. Roadmap
 
 1. **Called shots and stances** (JA): head/legs shots that trade aim for effects; crouch for +def.
 2. **Morale and panic** (JA, XCOM): troopers seeing allies fall can panic.

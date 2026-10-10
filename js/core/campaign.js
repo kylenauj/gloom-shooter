@@ -55,13 +55,17 @@ C.create = function(seed){
 };
 function rngOf(camp){ const r = GS.RNG(1); r.state = camp.rngState || camp.seed; return { r, save:()=> camp.rngState = r.state }; }
 
-C.threatFor = (camp, region)=> GS.clamp(1 + Math.floor(camp.regions[region].gloom*0.8) + Math.floor((camp.week - 1)/3), 1, 8);
+C.threatFor = (camp, region)=> GS.clamp(1 + Math.floor(camp.regions[region].gloom*0.6) + Math.floor((camp.week - 1)/4), 1, 8);
 C.genMissions = function(camp){
   const { r, save } = rngOf(camp);
   const pool = GS.REGIONS.filter(R=> !R.finale && camp.regions[R.id].gloom >= 1).map(R=> R.id);
   r.shuffle(pool);
-  camp.missions = pool.slice(0, 3).map(id=>{
-    const g = camp.regions[id].gloom, type = g >= 3 && r.chance(0.45) ? "heart" : "purge", threat = C.threatFor(camp, id);
+  // the Hollow under threat always gets a chance to defend itself
+  if(camp.regions.hollow.gloom >= 3){ pool.splice(pool.indexOf("hollow"), 1); pool.unshift("hollow"); }
+  // from week 3, while fewer than two hearts are burned, one mission a week is always a heart
+  const needHeart = camp.week >= 3 && camp.hearts < 2;
+  camp.missions = pool.slice(0, 3).map((id, i)=>{
+    const g = camp.regions[id].gloom, type = (needHeart && i === (pool[0] === "hollow" && camp.regions.hollow.gloom >= 3 ? 1 : 0)) || (g >= 2 && r.chance(0.3)) ? "heart" : "purge", threat = C.threatFor(camp, id);
     return { id:"m" + camp.week + "_" + id, region:id, type, threat, seed:r.int(1, 1e6),
              reward:{ caps:20 + threat*6 + (type === "heart" ? 15 : 0), samples:type === "heart" ? 3 : 1 } };
   });
@@ -116,7 +120,7 @@ C.resolve = function(camp, missionId, sum){
   camp.samples += sum.samples;
   if(won){
     camp.caps += m.reward.caps; camp.samples += m.reward.samples;
-    reg.gloom = Math.max(0, reg.gloom - 2);
+    reg.gloom = Math.max(0, reg.gloom - (m.type === "heart" ? 3 : 2));
     if(m.type === "heart") camp.hearts++;
     rep.unshift("Victory in " + C.regionName(m.region) + ": +" + m.reward.caps + " caps, +" + (sum.samples + m.reward.samples) + " spore samples. The Gloom there recedes.");
     if(m.type === "finale"){ camp.over = "victory"; rep.unshift("The Sporelord is dead. The forest breathes again."); }
@@ -124,8 +128,9 @@ C.resolve = function(camp, missionId, sum){
     reg.gloom = Math.min(5, reg.gloom + 1);
     rep.unshift((sum.result === "retreat" ? "The squad pulled out of " : "The squad was overrun in ") + C.regionName(m.region) + ". The Gloom spreads there.");
   }
-  // every mission you didn't fly: the Gloom grows unchecked
-  camp.missions.forEach(o=>{ if(o !== m && o.type !== "finale"){ camp.regions[o.region].gloom = Math.min(5, camp.regions[o.region].gloom + 1); rep.push("Unanswered: " + C.regionName(o.region) + " rots further."); } });
+  // the worst of the missions you didn't fly goes unchecked (one penalty a week, like XCOM's dark event)
+  const skipped = camp.missions.filter(o=> o !== m && o.type !== "finale").sort((a, b)=> b.threat - a.threat)[0];
+  if(skipped){ camp.regions[skipped.region].gloom = Math.min(5, camp.regions[skipped.region].gloom + 1); rep.push("Unanswered: " + C.regionName(skipped.region) + " rots further."); }
   camp.report = rep;
   C.advanceWeek(camp);
   return rep;
@@ -155,7 +160,7 @@ C.advanceWeek = function(camp){
     if(R.progress >= D.weeks){ C.applyUnlock(camp, D.unlock); R.done.push(R.current); rep.push("Research complete: " + D.name + "."); R.current = null; R.progress = 0; }
   }
   // the Gloom spreads from wherever it's thickest
-  const spreads = 1 + Math.floor(camp.week/4);
+  const spreads = camp.week < 3 ? 0 : 1 + Math.floor(camp.week/8);
   for(let k=0;k<spreads;k++){
     const src = GS.REGIONS.filter(X=> camp.regions[X.id].gloom >= 3);
     if(!src.length) break;

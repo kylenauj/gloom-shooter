@@ -212,3 +212,18 @@ test("campaign: workshop, equip, hire, promote", ()=>{
   assert.ok(C.promote(camp, t.id, GS.CLASSES[t.cls].tree[0][1]));
   assert.strictEqual(t.rank, 1);
 });
+
+test("regression (ghost, seed 1146): a patrolling unit woken by overwatch mid-move never teleports", ()=>{
+  const seed = 1146, rng = GS.RNG(seed*17 + 3), items = Object.keys(GS.ITEMS);
+  const squad = rng.shuffle(GS.CLASS_ORDER.slice()).slice(0, 5).map(cls=> GS.makeSquadUnit({ cls, rank:1, picks:GS.CLASSES[cls].tree.slice(0, 1).map(p=> rng.pick(p)), item:rng.pick(items) }));
+  require("../tools/ghost/policy.js");
+  const b = GS.setupBattle({ seed, type:"purge", threat:3, squad, mods:{ chorus:["glowHymn", "rootHymn", "hushHymn"] } });
+  const pos = {}; b.units.forEach(u=> pos[u.id] = [u.x, u.y]);
+  const emit = b.emit.bind(b);
+  b.emit = e=>{
+    if(e.type === "step"){ const p = pos[e.id]; if(p) assert.ok(Math.hypot(p[0] - e.x, p[1] - e.y) <= 1.5 + 1e-9, e.id + " jumped " + p + " -> " + e.x + "," + e.y); pos[e.id] = [e.x, e.y]; }
+    if(e.type === "spawn") pos[e.unit.id] = [e.unit.x, e.unit.y];
+    emit(e);
+  };
+  for(let k=0; k<12 && !b.over; k++){ for(const u of b.squad()){ if(!b.over && b.able(u)) GS.Ghost.smartUnit(b, u, "smart"); } if(!b.over) b.endTurn(); b.drain(); }
+});

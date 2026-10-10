@@ -79,6 +79,7 @@ kbd{font-family:var(--display);font-size:12px;color:var(--ink);background:var(--
 .hollow-top > b{font-family:var(--display);font-size:20px;color:var(--cream);letter-spacing:.06em;margin-right:10px;}
 .hollow-top span b{color:var(--cream);} .hollow-top .ico{width:16px;height:16px;vertical-align:-3px;color:var(--signal);}
 .hollow-top .fg b{color:var(--rot);}
+.hollow-top .danger{color:#000;background:var(--rot);padding:2px 10px;font-weight:700;transform:skewX(-9deg);} .hollow-top .danger b{color:#000;}
 .hollow{display:flex;gap:28px;align-items:flex-start;}
 .hollow > .left{flex:0 0 250px;} .hollow > .right{flex:1;min-width:0;}
 .tabs .item{font-size:18px;} .tabs .dot{color:var(--amber);font-size:11px;text-transform:uppercase;}
@@ -129,12 +130,13 @@ select{width:100%;font:inherit;font-size:14px;color:var(--cream);background:#0f2
 /* ---- the battle HUD ---- */
 #hud{position:fixed;inset:0;pointer-events:none;font-size:14px;}
 #hud > *{pointer-events:auto;}
-#hud .h-top,#hud .h-right,#hud .h-bottom{pointer-events:none;} #hud .h-top > *,#hud .h-right > *,#hud .h-bottom > *{pointer-events:auto;}
-.h-top{position:absolute;top:10px;left:12px;right:12px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between;}
-.h-mission{padding:7px 14px;display:flex;flex-direction:column;max-width:330px;}
+#hud .h-left,#hud .h-right,#hud .h-bottom{pointer-events:none;} #hud .h-left > *,#hud .h-right > *,#hud .h-bottom > *{pointer-events:auto;}
+/* three columns: left (mission, squad), centre (meters), right (buttons, target, log). Each column stacks, so nothing collides when text wraps */
+.h-left{position:absolute;left:12px;top:10px;width:230px;display:flex;flex-direction:column;gap:8px;max-height:calc(100% - 24px);}
+.h-mission{padding:7px 14px;display:flex;flex-direction:column;}
 .h-mission b{font-family:var(--display);font-size:18px;letter-spacing:.04em;} .h-mission span{color:var(--dim);font-size:12.5px;}
 .h-mission i{font-style:normal;font-weight:700;} .h-mission .sq{color:var(--signal);} .h-mission .gl{color:var(--rot);}
-.h-meters{padding:7px 14px;display:flex;gap:18px;align-items:center;}
+.h-meters{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:7px 14px;display:flex;gap:18px;align-items:center;}
 .h-meters label{display:block;font-family:var(--display);font-size:11px;letter-spacing:.14em;color:var(--dim);}
 #hTide{display:flex;gap:3px;} #hTide i{width:14px;height:12px;background:#1d2a3e;border:2px solid var(--ink);transform:skewX(-12deg);}
 #hTide i.mark{border-color:#6a3a6a;} #hTide i.on{background:var(--rot);box-shadow:0 0 8px rgba(255,79,216,.6);} #hTide i.on.mark{background:#ff9ae8;}
@@ -146,7 +148,7 @@ select{width:100%;font:inherit;font-size:14px;color:var(--cream);background:#0f2
 .hb{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--plate);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;color:var(--cream);}
 .hb:hover{background:#1a3352;} .hb.on{color:var(--ink);background:var(--signal);}
 .hb.chorus{color:var(--gold);} .hb.chorus.used{opacity:.3;} .hb[disabled]{cursor:default;}
-.h-squad{position:absolute;left:12px;top:92px;display:flex;flex-direction:column;gap:6px;width:210px;}
+.h-squad{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto;}
 .sq-card{display:flex;gap:8px;align-items:center;padding:4px 8px 5px 4px;background:var(--plate);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;}
 .sq-card img{width:46px;height:46px;background:#0f2036;flex:none;}
 .sq-card > div{flex:1;min-width:0;} .sq-card b{display:block;font-family:var(--display);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -156,7 +158,7 @@ select{width:100%;font:inherit;font-size:14px;color:var(--cream);background:#0f2
 .hpb em{position:absolute;right:2px;top:-4px;font-size:10px;font-style:normal;font-weight:700;text-shadow:1px 1px 0 #000;}
 .appips{display:flex;gap:3px;font-size:10px;font-weight:700;color:var(--bad);} .appips i,.u-ap i{width:10px;height:7px;background:#1d2a3e;border:1px solid var(--ink);transform:skewX(-12deg);}
 .appips i.on,.u-ap i.on{background:var(--signal);}
-.h-right{position:absolute;right:12px;top:66px;width:260px;display:flex;flex-direction:column;gap:10px;}
+.h-right{position:absolute;right:12px;top:10px;width:260px;display:flex;flex-direction:column;gap:10px;}
 .h-target{padding:10px 12px;}
 .tg-head{display:flex;gap:10px;align-items:center;} .tg-head img{width:48px;height:48px;background:#1a0f20;flex:none;}
 .tg-head b{font-family:var(--display);font-size:17px;display:block;} .tg-head small{color:var(--dim);font-size:12px;}
@@ -217,14 +219,30 @@ select{width:100%;font:inherit;font-size:14px;color:var(--cream);background:#0f2
 
 /* ---- narrow screens ---- */
 @media (max-width:900px){
-  .h-squad{width:58px;top:84px;} .sq-card{padding:3px;} .sq-card > div{display:none;} .sq-card img{width:44px;height:44px;}
-  .h-right{width:200px;top:auto;bottom:150px;} .h-log{display:none;}
-  .h-mission{max-width:180px;} .h-mission span:nth-child(2){display:none;}
+  .h-left{width:150px;} .sq-card{padding:3px;} .sq-card > div{display:none;} .sq-card img{width:44px;height:44px;} .h-squad{flex-direction:row;flex-wrap:wrap;}
+  .h-right{width:200px;} .h-log{display:none;}
+  .h-mission{padding:5px 9px;} .h-mission b{font-size:14px;} .h-mission span:nth-child(2){display:none;}
   .h-meters{flex-direction:column;gap:4px;padding:5px 8px;} #hTide i{width:9px;} #hTideName{display:none;}
-  .h-sys .hb{width:34px;height:34px;}
+  .h-sys .hb{width:34px;height:34px;} .h-sys{gap:4px;}
   .h-unit img{display:none;} .h-unit{padding:5px 10px;}
   .ab{width:44px;height:44px;} .h-end{bottom:auto;top:auto;right:10px;bottom:150px;padding:10px 14px;font-size:16px;}
   .hollow{flex-direction:column;} .hollow > .left{flex:none;width:100%;} .tabs{flex-direction:row;flex-wrap:wrap;} .tabs .item{width:auto;font-size:15px;padding:6px 12px;}
   .cols{flex-direction:column;} .cols > .left{flex:none;width:100%;}
+}
+/* short screens (a phone on its side): a smaller title so the menu fits */
+@media (max-height:520px){
+  .title-wrap{gap:10px;} .logo .l1{font-size:40px;} .logo .plank{font-size:28px;} .logo .sub{margin-top:.4em;font-size:13px;}
+  .title-wrap .item{padding:6px 14px 5px;font-size:16px;} .title-wrap .hint{display:none;} .title-wrap .menu{gap:6px;}
+}
+/* a phone held upright: a narrow left rail, the meters under it, buttons in a wrapping row */
+@media (max-width:560px){
+  .h-left{width:110px;} .h-mission span{display:none;} .h-mission b{font-size:12px;}
+  .h-meters{left:12px;top:auto;bottom:auto;transform:none;position:static;padding:5px 6px;gap:5px;} .h-left .h-meters{display:flex;}
+  .h-meters label{font-size:9px;letter-spacing:.06em;} #hTide,#hLumen{gap:2px;} #hTide i,#hLumen i{width:5px;height:9px;border-width:1px;} #hLumen b{font-size:14px;margin-left:3px;}
+  .conceal{font-size:10px;} .conceal .ico{width:12px;}
+  .h-right{width:150px;} .h-sys .hb{width:30px;height:30px;} .h-sys .ico{width:18px;height:18px;}
+  .h-bottom{left:12px;transform:none;width:calc(100% - 24px);align-items:flex-start;padding-right:0;}
+  .h-abil,.h-unit{max-width:calc(100% - 118px);} .h-abil{justify-content:flex-start;} .ab{width:40px;height:40px;} .h-desc{display:none;}
+  .h-end{bottom:12px;padding:8px 10px;font-size:14px;}
 }
 @media (prefers-reduced-motion:reduce){ .h-end.ready,svg.forest .pulse{animation:none;} }

@@ -292,7 +292,7 @@ class BattleView {
       case "chorus": {
         Au.play("chorus");
         this.b.squad().forEach(u=>{ const a = this.actors[u.id]; if(a && !a.downed){ FX.rise(this.actorPos(a, 0.2), 0xffe6a0, 30); FX.ring(a.R.root.position, 0xffe6a0, 1.6, 0.9); } });
-        this.o.onBanner && this.o.onBanner(GS.CHORUS[e.id].name.toUpperCase(), GS.CHORUS[e.id].desc, "chorus");
+        this.o.onBanner && this.o.onBanner(GS.CHORUS[e.song].name.toUpperCase(), GS.CHORUS[e.song].desc, "chorus");
         await this.t(900); return; }
       case "end":
         Au.play(e.result === "victory" ? "victory" : "defeat");
