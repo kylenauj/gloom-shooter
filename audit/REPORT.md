@@ -1,16 +1,27 @@
 # Ghost audit
 
-_2026-10-10T04:57:32.942Z · commit a26a15b · 683 battles · 12 campaigns · 238 s_
+_2026-10-10T19:50:12.299Z · commit bf18ca7 · 683 battles · 12 campaigns · 224 s_
 
-**Score 100/100** — 0 critical, 0 major, 0 minor, 0 notes (last run: 98)
+**Score 100/100** — 0 critical, 0 major, 0 minor, 0 notes (last run: 100)
 
-Since the last run: **0 new**, **1 fixed**.
-
-- fixed: layout|Off-screen at title/phone-landscape: .title-wrap
+Since the last run: **0 new**, **0 fixed**.
 
 ## Findings
 
 Nothing found.
+
+## Opportunities
+
+Not bugs: places the game could play better. Each has the evidence behind it and a first idea.
+
+| impact | area | opportunity | evidence | first idea |
+|---|---|---|---|---|
+| high | campaign | Campaigns snowball: they're decided in the first weeks | 6 flawless wins and 3 early defeats out of 12 | Mid-campaign pressure for strong squads (a Gloom counter-offensive, the Chosen-style nemesis), and catch-up for struggling ones (cheaper recruits, a rescue mission). |
+| med | depth | Concealment breaks before you can use it | 69% of reveals were the squad being spotted, not ambushing | Show the Gloom's detection radius on tiles while concealed (XCOM's red tiles), so ambushes can be planned. |
+| med | content | A small roster of Gloom | 5 regular creature types | New creatures that ask new questions: a flier that ignores cover, a burrower that pops up behind the line, a spore-totem that buffs nearby rot. |
+| low | pacing | Battles end quickly | 5.8 rounds on average | Room for mid-battle twists: a second objective, a spore-pod landing on a timer, or an evac. |
+
+Feel: first contact round 1 · enemy turn ~4.8 s (p90 11.5 s) · unseen hits 6% · 3+ miss streaks in 2% of battles · idle warden turns 8% · squad overwatch 1.11/battle
 
 ## Balance
 
@@ -86,13 +97,13 @@ move 8928/8928 · fire 6443/6463 · hunker 1662/1662 · overwatch 1451/1453 · o
 
 Played through the real page.
 
-- Title ready in 1284 ms at desktop.
-- Title ready in 886 ms at laptop.
-- Title ready in 1037 ms at phone-landscape.
-- Title ready in 844 ms at phone-portrait.
+- Title ready in 2673 ms at desktop.
+- Title ready in 712 ms at laptop.
+- Title ready in 746 ms at phone-landscape.
+- Title ready in 973 ms at phone-portrait.
 - A real mouse click moved a warden to the tile under the cursor.
 - Hovering an enemy shows the to-hit breakdown.
-- Played 2 rounds in the real view. 4 fps (software rendering in CI; a real GPU will be far faster).
+- Played 4 rounds in the real view. 5 fps (software rendering in CI; a real GPU will be far faster).
 - A campaign mission, save, quit and continue all worked in the page.
 
 Screenshots in `audit/shots/`: title-desktop.png, title-laptop.png, title-phone-landscape.png, title-phone-portrait.png, battle-start.png, battle-aim.png, battle-mid.png, battle-end.png, battle-laptop.png, battle-phone-landscape.png, battle-phone-portrait.png, hollow-map.png, hollow-squad.png, hollow-research.png, hollow-workshop.png, hollow-recruit.png, hollow-report.png, deploy.png, results.png
